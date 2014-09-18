@@ -8,6 +8,20 @@ describe BrokerPool do
   end
 
   describe "fetching metadata" do
+    context "single broker" do
+      it "initializes connection properly" do
+        @broker_pool = BrokerPool.new("test_client", ["localhost:9092"], 2_000)
+        @broker = double('Poseidon::Connection', :topic_metadata => nil)
+
+        expected_args = ["localhost", "9092", "test_client", 2_000]
+        connection = stub('conn').as_null_object
+
+        Connection.should_receive(:new).with(*expected_args).and_return(connection)
+
+        @broker_pool.fetch_metadata(Set.new)
+      end
+    end
+
     context "no seed brokers" do
       it "raises Error" do
         @broker_pool = BrokerPool.new("test_client", [], 10_000)

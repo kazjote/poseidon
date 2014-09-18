@@ -53,6 +53,9 @@ module Poseidon
     #   Default: 100 (100ms)
     # @option options [:min_bytes] Smallest amount of data the server should send us.
     #   Default: 0 (Send us data as soon as it is ready)
+    # @option options [:socket_timeout_ms]
+    #   How long to wait for reply from server. Should be higher than max_wait_ms.
+    #   Default: 10000 (10s)
     #
     # @api public
     def initialize(client_id, host, port, topic, partition, offset, options = {})
