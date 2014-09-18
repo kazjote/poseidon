@@ -18,7 +18,7 @@ Gem::Specification.new do |gem|
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ["lib"]
 
-  gem.add_development_dependency(%q<rspec>)
+  gem.add_development_dependency(%q<rspec>, '~> 2.14')
   gem.add_development_dependency(%q<yard>)
   gem.add_development_dependency(%q<simplecov>)
   gem.add_development_dependency(%q<daemon_controller>)

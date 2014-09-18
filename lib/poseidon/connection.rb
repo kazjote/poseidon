@@ -18,33 +18,34 @@ module Poseidon
     # @param [String] host Host to connect to
     # @param [Integer] port Port broker listens on
     # @param [String] client_id Unique across processes?
-    def initialize(host, port, client_id)
+    def initialize(host, port, client_id, socket_timeout_ms)
       @host = host
       @port = port
 
       @client_id = client_id
+      @socket_timeout_ms = socket_timeout_ms
     end
 
     # Close broker connection
     def close
       @socket && @socket.close
     end
-  
+
     # Execute a produce call
     #
     # @param [Integer] required_acks
     # @param [Integer] timeout
     # @param [Array<Protocol::MessagesForTopics>] messages_for_topics Messages to send
     # @return [ProduceResponse]
-    def produce(required_acks, timeout, socket_timeout, messages_for_topics)
+    def produce(required_acks, timeout, messages_for_topics)
       ensure_connected
       req = ProduceRequest.new( request_common(:produce),
                                 required_acks,
                                 timeout,
                                 messages_for_topics) 
-      send_request(req, socket_timeout)
+      send_request(req)
       if required_acks != 0
-        read_response(ProduceResponse, socket_timeout)
+        read_response(ProduceResponse)
       else
         true
       end
@@ -99,13 +100,13 @@ module Poseidon
       end
     end
 
-    def read_response(response_class, timeout=60)
-      r = ensure_read_or_timeout(4, timeout)
+    def read_response(response_class)
+      r = ensure_read_or_timeout(4)
       if r.nil?
         raise ConnectionFailedError
       end
       n = r.unpack("N").first
-      s = ensure_read_or_timeout(n, timeout)
+      s = ensure_read_or_timeout(n)
       buffer = Protocol::ResponseBuffer.new(s)
       response_class.read(buffer)
     rescue Errno::ECONNRESET, TimeoutException
@@ -113,25 +114,25 @@ module Poseidon
       raise ConnectionFailedError
     end
 
-    def ensure_read_or_timeout(maxlen, timeout)
-      if IO.select([@socket], nil, nil, timeout)
+    def ensure_read_or_timeout(maxlen)
+      if IO.select([@socket], nil, nil, @socket_timeout_ms / 1000.0)
          @socket.read(maxlen)
       else
          raise TimeoutException.new
       end
     end
 
-    def send_request(request, timeout=60)
+    def send_request(request)
       buffer = Protocol::RequestBuffer.new
       request.write(buffer)
-      ensure_write_or_timeout([buffer.to_s.bytesize].pack("N") + buffer.to_s, timeout)
+      ensure_write_or_timeout([buffer.to_s.bytesize].pack("N") + buffer.to_s)
     rescue Errno::EPIPE, Errno::ECONNRESET, TimeoutException
       @socket = nil
       raise ConnectionFailedError
     end
 
-    def ensure_write_or_timeout(data, timeout)
-      if IO.select(nil, [@socket], nil, timeout)
+    def ensure_write_or_timeout(data)
+      if IO.select(nil, [@socket], nil, @socket_timeout_ms / 1000.0)
         @socket.write(data)
       else
         raise TimeoutException.new
